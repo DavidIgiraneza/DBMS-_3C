@@ -1,0 +1,254 @@
+
+sql
+```
+SET SERVEROUTPUT ON;
+```
+
+## 1. Trigger to restrict access to a table on weekends
+
+Aim: Prevent `INSERT`, `UPDATE`, and `DELETE` operations on the `EMP` table on Saturdays and Sundays.
+
+sql
+```
+CREATE OR REPLACE TRIGGER RESTRICT_WEEKEND
+BEFORE INSERT OR UPDATE OR DELETE ON EMP
+BEGIN
+    IF TO_CHAR(SYSDATE, 'DY', 'NLS_DATE_LANGUAGE=ENGLISH')
+       IN ('SAT', 'SUN') THEN
+        RAISE_APPLICATION_ERROR(
+            -20001,
+            'Access to EMP is not allowed on weekends.'
+        );
+    END IF;
+END;
+/
+```
+
+Explanation: The trigger fires before any insert, update, or delete operation. If the current day is Saturday or Sunday, the operation is rejected.
+
+Note: This restricts data modifications, not `SELECT` queries or all forms of table access.
+
+## 2. Trigger to restrict salary greater than Rs. 50,000
+
+Aim: Prevent insertion of an employee whose salary exceeds Rs. 50,000.
+
+sql
+```
+CREATE OR REPLACE TRIGGER CHECK_SALARY
+BEFORE INSERT ON EMP
+FOR EACH ROW
+BEGIN
+    IF :NEW.SAL > 50000 THEN
+        RAISE_APPLICATION_ERROR(
+            -20002,
+            'Salary cannot exceed Rs. 50000.'
+        );
+    END IF;
+END;
+/
+```
+
+Explanation:
+
+- `BEFORE INSERT` executes before a new row is inserted.
+- `FOR EACH ROW` makes it a row-level trigger.
+- `:NEW.SAL` refers to the salary being inserted.
+
+## 3. Trigger to insert new EMP records into NEWEMP
+
+Aim: Whenever a record is inserted into `EMP`, insert the same employee details into `NEWEMP`.
+
+Assumption: `NEWEMP` has the same columns as `EMP`.
+
+sql
+```
+CREATE OR REPLACE TRIGGER COPY_EMP_INSERT
+AFTER INSERT ON EMP
+FOR EACH ROW
+BEGIN
+    INSERT INTO NEWEMP
+        (EMPNO, ENAME, JOB, MGR, HIREDATE,
+         SAL, COMM, DEPTNO)
+    VALUES
+        (:NEW.EMPNO, :NEW.ENAME, :NEW.JOB, :NEW.MGR,
+         :NEW.HIREDATE, :NEW.SAL, :NEW.COMM, :NEW.DEPTNO);
+END;
+/
+```
+
+Explanation: `AFTER INSERT` copies the newly inserted employee into `NEWEMP`. The `:NEW` prefix refers to the new row.
+
+## 4. Trigger to insert old EMP values into NEWEMP on update
+
+Aim: Save the previous employee details in `NEWEMP` whenever an employee record is updated.
+
+sql
+```
+CREATE OR REPLACE TRIGGER COPY_EMP_UPDATE
+BEFORE UPDATE ON EMP
+FOR EACH ROW
+BEGIN
+    INSERT INTO NEWEMP
+        (EMPNO, ENAME, JOB, MGR, HIREDATE,
+         SAL, COMM, DEPTNO)
+    VALUES
+        (:OLD.EMPNO, :OLD.ENAME, :OLD.JOB, :OLD.MGR,
+         :OLD.HIREDATE, :OLD.SAL, :OLD.COMM, :OLD.DEPTNO);
+END;
+/
+```
+
+Explanation:
+
+- `BEFORE UPDATE` executes before the original row is changed.
+- `:OLD` contains the values before the update.
+- The previous values are saved in `NEWEMP`.
+
+## 5. Trigger to insert deleted EMP values into NEWEMP
+
+Aim: Save the employee details in `NEWEMP` before an employee record is deleted.
+
+sql
+```
+CREATE OR REPLACE TRIGGER COPY_EMP_DELETE
+BEFORE DELETE ON EMP
+FOR EACH ROW
+BEGIN
+    INSERT INTO NEWEMP
+        (EMPNO, ENAME, JOB, MGR, HIREDATE,
+         SAL, COMM, DEPTNO)
+    VALUES
+        (:OLD.EMPNO, :OLD.ENAME, :OLD.JOB, :OLD.MGR,
+         :OLD.HIREDATE, :OLD.SAL, :OLD.COMM, :OLD.DEPTNO);
+END;
+/
+```
+
+Explanation: `BEFORE DELETE` saves the employee's existing details before the row is removed. `:OLD` refers to the deleted row's values.
+
+## 6. Trigger to insert deleted EMP values into NEWEMP
+
+This is the same requirement as Question 5. Here is an alternative trigger name.
+
+sql
+```
+CREATE OR REPLACE TRIGGER BACKUP_EMP_DELETE
+BEFORE DELETE ON EMP
+FOR EACH ROW
+BEGIN
+    INSERT INTO NEWEMP
+        (EMPNO, ENAME, JOB, MGR, HIREDATE,
+         SAL, COMM, DEPTNO)
+    VALUES
+        (:OLD.EMPNO, :OLD.ENAME, :OLD.JOB, :OLD.MGR,
+         :OLD.HIREDATE, :OLD.SAL, :OLD.COMM, :OLD.DEPTNO);
+END;
+/
+```
+
+Explanation: The trigger stores the deleted employee's old values in `NEWEMP`.
+
+Important: Do not create both Question 5 and Question 6 triggers together on the same table unless you intend to store every deleted row twice.
+
+## 7. Trigger to insert existing EMP values into NEWEMP on update
+
+This repeats Question 4. The following version backs up the old values when an employee's salary is updated.
+
+sql
+```
+CREATE OR REPLACE TRIGGER BACKUP_EMP_SAL_UPDATE
+BEFORE UPDATE OF SAL ON EMP
+FOR EACH ROW
+BEGIN
+    INSERT INTO NEWEMP
+        (EMPNO, ENAME, JOB, MGR, HIREDATE,
+         SAL, COMM, DEPTNO)
+    VALUES
+        (:OLD.EMPNO, :OLD.ENAME, :OLD.JOB, :OLD.MGR,
+         :OLD.HIREDATE, :OLD.SAL, :OLD.COMM, :OLD.DEPTNO);
+END;
+/
+```
+
+Explanation: This trigger fires only when an update statement targets the `SAL` column. It saves the previous employee details before the salary changes.
+
+## 8. Trigger to restrict salary greater than Rs. 50,000
+
+This repeats Question 2. The following version also prevents updates that would set the salary above Rs. 50,000.
+
+sql
+```
+CREATE OR REPLACE TRIGGER LIMIT_EMP_SALARY
+BEFORE INSERT OR UPDATE OF SAL ON EMP
+FOR EACH ROW
+BEGIN
+    IF :NEW.SAL > 50000 THEN
+        RAISE_APPLICATION_ERROR(
+            -20003,
+            'Salary must not exceed Rs. 50000.'
+        );
+    END IF;
+END;
+/
+```
+
+Explanation: The trigger prevents both inserts and salary updates when the new salary exceeds Rs. 50,000.
+
+## 9. Trigger to add MR. or MS. based on employee gender
+
+Assumption: The `EMP` table contains `ENAME` and a `GENDER` column with values `MALE` or `FEMALE`.
+
+sql
+```
+CREATE OR REPLACE TRIGGER SET_EMP_TITLE
+BEFORE INSERT OR UPDATE OF ENAME, GENDER ON EMP
+FOR EACH ROW
+BEGIN
+    IF UPPER(:NEW.GENDER) = 'MALE' THEN
+        IF UPPER(SUBSTR(:NEW.ENAME, 1, 4)) = 'MR. ' THEN
+            :NEW.ENAME := 'MR. ' ||
+                          SUBSTR(:NEW.ENAME, 5);
+        ELSE
+            :NEW.ENAME := 'MR. ' || :NEW.ENAME;
+        END IF;
+
+    ELSIF UPPER(:NEW.GENDER) = 'FEMALE' THEN
+        IF UPPER(SUBSTR(:NEW.ENAME, 1, 4)) = 'MS. ' THEN
+            :NEW.ENAME := 'MS. ' ||
+                          SUBSTR(:NEW.ENAME, 5);
+        ELSE
+            :NEW.ENAME := 'MS. ' || :NEW.ENAME;
+        END IF;
+    END IF;
+END;
+/
+```
+
+Explanation:
+
+- If the gender is `MALE`, the trigger adds `MR.` before the name.
+- If the gender is `FEMALE`, it adds `MS.` before the name.
+- The trigger avoids repeatedly adding the same title when the name already has it.
+
+Note: Standard Oracle `SCOTT.EMP` does not contain a `GENDER` column. Add that column or adapt the trigger to your actual table structure before compiling it.
+
+## 10. Trigger to restrict table modifications on Sunday
+
+Aim: Prevent insert, update, and delete operations on the `EMP` table on Sunday only.
+
+sql
+```
+CREATE OR REPLACE TRIGGER RESTRICT_SUNDAY
+BEFORE INSERT OR UPDATE OR DELETE ON EMP
+BEGIN
+    IF TO_CHAR(SYSDATE, 'DY', 'NLS_DATE_LANGUAGE=ENGLISH')
+       = 'SUN' THEN
+        RAISE_APPLICATION_ERROR(
+            -20004,
+            'EMP table modifications are not allowed on Sunday.'
+        );
+    END IF;
+END;
+/
+```
+

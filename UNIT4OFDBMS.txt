@@ -1,0 +1,491 @@
+Here are the 10 PL/SQL programs on Procedures and Functions, written in a practical-exam format with code, explanations, and examples of how to execute them.
+
+Before running the programs, execute:
+
+sql
+```
+SET SERVEROUTPUT ON;
+```
+
+# 1. Simple procedure without parameters
+
+Aim: Create a procedure that displays a user-defined message. Call it using a separate PL/SQL block and directly from the command line.
+
+### Create the procedure
+
+sql
+```
+CREATE OR REPLACE PROCEDURE MESSAGE
+IS
+BEGIN
+    DBMS_OUTPUT.PUT_LINE('Welcome to PL/SQL Programming');
+END;
+/
+```
+
+### A. Call using a separate PL/SQL block
+
+sql
+```
+BEGIN
+    MESSAGE;
+END;
+/
+```
+
+### B. Call directly from the command line
+
+sql
+```
+EXECUTE MESSAGE;
+```
+
+Output:
+
+text
+```
+Welcome to PL/SQL Programming
+```
+
+# 2. Procedure to increase salary by a given percentage using an IN parameter
+
+Aim: Increase the salary of employees in a given department by a percentage supplied to the procedure.
+
+sql
+```
+CREATE OR REPLACE PROCEDURE INCREASE_SAL
+(
+    P_DEPTNO IN EMP.DEPTNO%TYPE,
+    P_PERCENT IN NUMBER
+)
+IS
+BEGIN
+    UPDATE EMP
+    SET SAL = SAL + (SAL * P_PERCENT / 100)
+    WHERE DEPTNO = P_DEPTNO;
+
+    IF SQL%ROWCOUNT > 0 THEN
+        DBMS_OUTPUT.PUT_LINE(
+            SQL%ROWCOUNT || ' employee(s) updated.'
+        );
+    ELSE
+        DBMS_OUTPUT.PUT_LINE(
+            'No employees found in this department.'
+        );
+    END IF;
+END;
+/
+```
+
+### Execute the procedure
+
+sql
+```
+BEGIN
+    INCREASE_SAL(10, 15);
+    COMMIT;
+END;
+/
+```
+
+Explanation: This increases the salary of employees in department 10 by 15%. `P_DEPTNO` and `P_PERCENT` are `IN` parameters.
+
+# 3. Search employee by ID using IN and OUT parameters
+
+Aim: Search for an employee using the employee number. Return the employee name if found; otherwise, display an appropriate message.
+
+### Create the procedure
+
+sql
+```
+CREATE OR REPLACE PROCEDURE SEARCH_EMP
+(
+    P_EMPNO IN EMP.EMPNO%TYPE,
+    P_ENAME OUT EMP.ENAME%TYPE
+)
+IS
+BEGIN
+    SELECT ENAME
+    INTO P_ENAME
+    FROM EMP
+    WHERE EMPNO = P_EMPNO;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        P_ENAME := NULL;
+END;
+/
+```
+
+### Call the procedure
+
+sql
+```
+DECLARE
+    V_NAME EMP.ENAME%TYPE;
+BEGIN
+    SEARCH_EMP(7369, V_NAME);
+
+    IF V_NAME IS NOT NULL THEN
+        DBMS_OUTPUT.PUT_LINE('Employee Found: ' || V_NAME);
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Employee ID not found.');
+    END IF;
+END;
+/
+```
+
+Explanation:
+
+- `P_EMPNO` is an `IN` parameter used to pass the employee number.
+- `P_ENAME` is an `OUT` parameter used to return the employee name.
+- `NO_DATA_FOUND` is handled inside the procedure.
+
+# 4. Function to return the square of a number
+
+Aim: Create a function that returns the square of the given number.
+
+### Create the function
+
+sql
+```
+CREATE OR REPLACE FUNCTION SQUARE_NUM
+(
+    N IN NUMBER
+)
+RETURN NUMBER
+IS
+BEGIN
+    RETURN N * N;
+END;
+/
+```
+
+### A. Execute using a separate PL/SQL block
+
+sql
+```
+DECLARE
+    V_RESULT NUMBER;
+BEGIN
+    V_RESULT := SQUARE_NUM(5);
+
+    DBMS_OUTPUT.PUT_LINE('Square = ' || V_RESULT);
+END;
+/
+```
+
+### B. Execute directly from the command line
+
+sql
+```
+EXECUTE DBMS_OUTPUT.PUT_LINE(SQUARE_NUM(5));
+```
+
+Alternatively, in SQL\*Plus or SQL Developer, run:
+
+sql
+```
+SELECT SQUARE_NUM(5) AS SQUARE
+FROM DUAL;
+```
+
+Output: `25`
+
+# 5. Function to return the balance for a given account number
+
+Aim: Create an `ACCOUNT` table and a function that returns the balance of the specified account.
+
+### Create the table
+
+sql
+```
+CREATE TABLE ACCOUNT
+(
+    ACNO NUMBER(10) PRIMARY KEY,
+    CNAME VARCHAR2(50),
+    BNAME VARCHAR2(50),
+    BALANCE NUMBER(12,2)
+);
+```
+
+### Insert sample records
+
+sql
+```
+INSERT INTO ACCOUNT
+VALUES (101, 'Rahul', 'SBI', 25000);
+
+INSERT INTO ACCOUNT
+VALUES (102, 'Priya', 'BOB', 40000);
+
+COMMIT;
+```
+
+### Create the function
+
+sql
+```
+CREATE OR REPLACE FUNCTION GET_BALANCE
+(
+    P_ACNO IN ACCOUNT.ACNO%TYPE
+)
+RETURN NUMBER
+IS
+    V_BALANCE ACCOUNT.BALANCE%TYPE;
+BEGIN
+    SELECT BALANCE
+    INTO V_BALANCE
+    FROM ACCOUNT
+    WHERE ACNO = P_ACNO;
+
+    RETURN V_BALANCE;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN NULL;
+END;
+/
+```
+
+### Execute the function
+
+sql
+```
+SELECT GET_BALANCE(101) AS BALANCE
+FROM DUAL;
+```
+
+Output: `25000`
+
+If the account number does not exist, the function returns `NULL`.
+
+# 6. Simple procedure without parameters that updates the EMP table
+
+Aim: Create a procedure that increases the salary of all employees by 10%.
+
+sql
+```
+CREATE OR REPLACE PROCEDURE UPDATE_EMP
+IS
+BEGIN
+    UPDATE EMP
+    SET SAL = SAL * 1.10;
+
+    DBMS_OUTPUT.PUT_LINE(
+        SQL%ROWCOUNT || ' employee(s) updated successfully.'
+    );
+END;
+/
+```
+
+### Execute the procedure
+
+sql
+```
+BEGIN
+    UPDATE_EMP;
+    COMMIT;
+END;
+/
+```
+
+Explanation: This procedure has no parameters and increases every employee's salary by 10%.
+
+# 7. Procedure to increase salary by a fixed amount using an IN parameter
+
+Aim: Increase the salary of employees in a specified department by a fixed amount supplied by the user, rather than by a percentage.
+
+sql
+```
+CREATE OR REPLACE PROCEDURE INCREASE_SAL_AMOUNT
+(
+    P_DEPTNO IN EMP.DEPTNO%TYPE,
+    P_AMOUNT IN NUMBER
+)
+IS
+BEGIN
+    UPDATE EMP
+    SET SAL = SAL + P_AMOUNT
+    WHERE DEPTNO = P_DEPTNO;
+
+    IF SQL%ROWCOUNT > 0 THEN
+        DBMS_OUTPUT.PUT_LINE(
+            SQL%ROWCOUNT || ' employee(s) updated.'
+        );
+    ELSE
+        DBMS_OUTPUT.PUT_LINE(
+            'No employees found in this department.'
+        );
+    END IF;
+END;
+/
+```
+
+### Execute the procedure
+
+sql
+```
+BEGIN
+    INCREASE_SAL_AMOUNT(20, 2000);
+    COMMIT;
+END;
+/
+```
+
+Explanation: All employees in department 20 receive a fixed salary increase of 2,000.
+
+# 8. Search employee number using IN and OUT parameters
+
+Aim: Check whether an employee number exists and return a status message using an `OUT` parameter.
+
+### Create the procedure
+
+sql
+```
+CREATE OR REPLACE PROCEDURE SEARCH_EMP_STATUS
+(
+    P_EMPNO IN EMP.EMPNO%TYPE,
+    P_STATUS OUT VARCHAR2
+)
+IS
+    V_COUNT NUMBER;
+BEGIN
+    SELECT COUNT(*)
+    INTO V_COUNT
+    FROM EMP
+    WHERE EMPNO = P_EMPNO;
+
+    IF V_COUNT > 0 THEN
+        P_STATUS := 'Employee number exists.';
+    ELSE
+        P_STATUS := 'Employee number does not exist.';
+    END IF;
+END;
+/
+```
+
+### Call the procedure
+
+sql
+```
+DECLARE
+    V_STATUS VARCHAR2(100);
+BEGIN
+    SEARCH_EMP_STATUS(7369, V_STATUS);
+
+    DBMS_OUTPUT.PUT_LINE(V_STATUS);
+END;
+/
+```
+
+Explanation:
+
+- `P_EMPNO` is the `IN` parameter.
+- `P_STATUS` is the `OUT` parameter.
+- `COUNT(*)` checks whether the employee number exists without raising `NO_DATA_FOUND`.
+
+# 9. Function to return the square of a number
+
+This is the same function as Program 4, shown again for direct command-line execution.
+
+### Create the function
+
+sql
+```
+CREATE OR REPLACE FUNCTION FIND_SQUARE
+(
+    P_NUM IN NUMBER
+)
+RETURN NUMBER
+IS
+BEGIN
+    RETURN P_NUM * P_NUM;
+END;
+/
+```
+
+### A. Execute using a PL/SQL block
+
+sql
+```
+DECLARE
+    V_ANS NUMBER;
+BEGIN
+    V_ANS := FIND_SQUARE(8);
+
+    DBMS_OUTPUT.PUT_LINE('Square = ' || V_ANS);
+END;
+/
+```
+
+### B. Execute without a PL/SQL block
+
+sql
+```
+SELECT FIND_SQUARE(8) AS SQUARE
+FROM DUAL;
+```
+
+Output: `64`
+
+# 10. Function to return the balance for a given account number
+
+This program uses the `ACCOUNT` table created in Program 5.
+
+### Create the function
+
+sql
+```
+CREATE OR REPLACE FUNCTION ACCOUNT_BALANCE
+(
+    P_ACNO IN NUMBER
+)
+RETURN NUMBER
+IS
+    V_BALANCE NUMBER(12,2);
+BEGIN
+    SELECT BALANCE
+    INTO V_BALANCE
+    FROM ACCOUNT
+    WHERE ACNO = P_ACNO;
+
+    RETURN V_BALANCE;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN NULL;
+END;
+/
+```
+
+### Execute the function
+
+sql
+```
+SELECT ACCOUNT_BALANCE(102) AS BALANCE
+FROM DUAL;
+```
+
+Output: `40000`
+
+To call the function using a PL/SQL block:
+
+sql
+```
+DECLARE
+    V_BALANCE NUMBER;
+BEGIN
+    V_BALANCE := ACCOUNT_BALANCE(102);
+
+    IF V_BALANCE IS NOT NULL THEN
+        DBMS_OUTPUT.PUT_LINE(
+            'Account Balance = ' || V_BALANCE
+        );
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Account not found.');
+    END IF;
+END;
+/
+```
+
